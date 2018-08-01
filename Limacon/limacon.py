@@ -332,6 +332,62 @@ if __name__ == '__main__':
 
             triangles = np.array(triangles)
 
+            def rotate_around_axis(vec: np.ndarray, u: np.ndarray, a: float):
+                """
+                asdf
+
+                :param vec:
+                :param u:
+                :param a:
+                :return:
+                """
+
+                ux = u[0]
+                uy = u[1]
+                uz = u[2]
+                ncos = 1 - np.cos(a)
+                cosa = np.cos(a)
+                sina = np.sin(a)
+
+                rotation_mat = np.array([
+                    [cosa+ux**2*ncos, ux*uy*ncos-uz*sina, ux*uz*ncos+uy*sina],
+                    [uy*ux*ncos+uz*sina, cosa+uy**2*ncos, uy*uz*ncos-ux*sina],
+                    [uz*ux*ncos-uy*sina, uz*uy*ncos+ux*sina, cosa+uz**2*ncos]
+                ])
+
+                return np.matmul(vec, rotation_mat)
+
+            def unit_vector(vector):
+                """ Returns the unit vector of the vector.  """
+                return vector / np.linalg.norm(vector)
+
+            def angle_between(v1, v2):
+                """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+                        >>> angle_between((1, 0, 0), (0, 1, 0))
+                        1.5707963267948966
+                        >>> angle_between((1, 0, 0), (1, 0, 0))
+                        0.0
+                        >>> angle_between((1, 0, 0), (-1, 0, 0))
+                        3.141592653589793
+                """
+                v1_u = unit_vector(v1)
+                v2_u = unit_vector(v2)
+                return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+            # Calculate the rotation matrix that moves shell to be upright and aligned with x-axis.
+            # find normal vector to z-vector and center-vector. Rotate around this normal vector the angle between
+            # the two vectors. Boom. Then rotate around z angle between tip vector and x.
+
+            # Z_vector of a shell is the vector from the last to the first point of the first triangle
+            center_vec = triangles[0][0] - triangles[0][2]
+            center_vec_unit = unit_vector(center_vec)
+            z_vector = np.array([0, 0, 1])
+            rotation_axis_vector = np.cross(z_vector, center_vec_unit)
+            angle_diff = angle_between(z_vector, center_vec_unit)
+
+            center_vec_rotated = rotate_around_axis(center_vec, rotation_axis_vector, angle_diff)
+
             # Create inner and outer shells perpendicular to triangles
             # Each orig triangle only defines 1 new point on the outer and inner shells. The new outer and inner
             # triangles will have to be found from the new single points, to make them match up.
@@ -401,6 +457,17 @@ if __name__ == '__main__':
             triangles_s_inn = np.array(triangles_s_inn)
             triangles_c_out = np.array(triangles_c_out)
             triangles_c_inn = np.array(triangles_c_inn)
+
+            # To rotate all triangle, each point in each triangle must be multiplied with the rotation matrix
+            # The rotation matrix should rotate so vector from center_inn to center_out is z-axis and right to tip left
+            # is x axis.
+            # TODO LB 20180731: output .obj file with rotated triangles.
+
+            # Rotate all points in triangles to have center vector up.
+            for tris, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
+                for tri, triangle in enumerate(triangles):
+                    for v, vertex in enumerate(triangle):
+                        triangles[tri][v] = rotate_around_axis(triangles[tri][v], rotation_axis_vector, angle_diff)
 
             # add triangles to .obj file
             obj_file = ''
