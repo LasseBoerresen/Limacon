@@ -12,6 +12,8 @@ from matplotlib.tri import Triangulation
 from matplotlib.patches import Circle, Wedge, Polygon
 from matplotlib.collections import PatchCollection
 
+import pprint
+
 """
 Create a set of curves, limacon, in the xy plane, with regular z increments and gradual rotatation around z, and 
 gradual scale in xy. Around this curve, starting at a variable point, create n points defining the centers of the 
@@ -104,17 +106,17 @@ if __name__ == '__main__':
     n_shells = 5
     phi_shells = 0  # -math.tau/5
     step = math.tau / n_shells
-    wall_thickness = 0.002  # everything is in meters.
+    wall_thickness = 0.0008  # everything is in meters.
     # moving control points towards center of half-shell, makes flat shells closer together, therefore extra scale.
     wall_thickness_extra_scale = 2.0
-    n_triangles = 256  # 8192
+    n_triangles = 1024 # 8192
     # n_triangles = 8192
     scale_from_mm_to_m = 1000
     pointiness = -0.04  # in meters
 
     sides = []
     sides_wireframe = []
-    for s, (side_scale, h_min, h_max, pure_scale_dir) in enumerate([(1.0, 0.0, 0.5, 1), (0.5, -0.025, 0.4, -1)]):
+    for s, (side_scale, h_min, h_max, pure_scale_dir) in enumerate([(1.0, 0.0, 0.5, 1), (0.6, -0.025, 0.4, -1)]):
         centers = np.arange(phi_shells, math.tau + phi_shells, step)
         inner_left = centers - (step / 8) * 1
         inner_right = centers + (step / 8) * 1
@@ -282,8 +284,12 @@ if __name__ == '__main__':
         #             break
         #             pass
 
+
+    inner_centers_layers = []
+
     # Generate Triangles
     for i, shells_layer in enumerate(shells_list):
+        inner_centers = []
         for j, shell in enumerate(shells_layer):
             tck_0, u_0 = splprep(
                 [sides[0][i][j].transpose()[0], sides[0][i][j].transpose()[1], sides[0][i][j].transpose()[2]], per=True,
@@ -299,6 +305,8 @@ if __name__ == '__main__':
             out_0 = np.array(splev(u_0_new, tck_0))
             out_1 = np.array(splev(u_1_new, tck_1))
 
+            inner_centers.append(out_1[:, 0])
+
             out = []
 
             # interlace points of the two curves
@@ -311,7 +319,7 @@ if __name__ == '__main__':
                 inside_to_out_diff_vectors = out_0[:, k] - out_1[:, k]
                 inside_to_out_diff_vectors_unit = inside_to_out_diff_vectors / np.linalg.norm(
                     inside_to_out_diff_vectors)
-                out_0[:, k] = out_0[:, k] + inside_to_out_diff_vectors_unit * np.abs(np.cos(k / n_points * math.tau)) * pointiness
+                out_0[:, k] = out_0[:, k] + inside_to_out_diff_vectors_unit * np.power(np.cos(k / n_points * math.tau), 2) * pointiness
                 # out_1[:, k] = out_1[:, k] + inside_to_out_diff_vectors_unit * np.abs(np.cos(k / n_points * math.tau)) * pointiness
 
             for k in range(n_points):
@@ -509,15 +517,19 @@ if __name__ == '__main__':
 
 
 
-            if j == 1:
+            if j == 0:
                 # break
                 pass
             # plt.show()
-        if i == 2:
+
+        inner_centers_layers.append(inner_centers)
+        if i == 0:
             # break
             pass
 
-
+    pp = pprint.PrettyPrinter()
+    pp.pprint(inner_centers_layers)
+    # TODO LB 20180827: Use limacon curve to generate skeleton, triangles and all using inner centers liset.
 
 
     # TODO LB 20180729: Redefine wireframe points to find infinity curves with a cirtain spacing to allow for shells to have a thickness.
