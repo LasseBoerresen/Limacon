@@ -133,8 +133,8 @@ if __name__ == '__main__':
         h_step = (h_max - h_min) / n_levels
         for i, h in enumerate(np.arange(h_min, h_max, h_step)):
 
-            layers_xyz = limacon(theta, h=h, scale_pure=side_scale)
-            ax.plot(xs=layers_xyz[:, 0], ys=layers_xyz[:, 1], zs=layers_xyz[:, 2], color='#' + hex(int(0xaaaaaa * side_scale))[2:])
+            # layers_xyz = limacon(theta, h=h, scale_pure=side_scale)
+            # ax.plot(xs=layers_xyz[:, 0], ys=layers_xyz[:, 1], zs=layers_xyz[:, 2], color='#' + hex(int(0xaaaaaa * side_scale))[2:])
             # layers_xyz = limacon(theta, h=h + h_step / 2, scale_pure=side_scale)
             # ax.plot(xs=layers_xyz[:, 0], ys=layers_xyz[:, 1], zs=layers_xyz[:, 2], color='#' + hex(int(0xaaaaaa * side_scale))[2:])
             # layers_xyz = limacon(theta, h=h - h_step / 2, scale_pure=side_scale)
@@ -261,35 +261,42 @@ if __name__ == '__main__':
         sides.append(shells_list)
         sides_wireframe.append(shells_wireframe_list)
 
+        if s == 1:
 
-        # for i, shells_layer in enumerate(shells_wireframe_list):
-        #     for j, shell in enumerate(shells_layer):
-        #         ax.plot(xs=shell[:, 0], ys=shell[:, 1], zs=shell[:, 2], color='green')
-        #         break
-        # #
-        # for i, shells_layer in enumerate(shells_list):
-        #     for j, shell in enumerate(shells_layer):
-        #         ax.plot(xs=shell[:, 0], ys=shell[:, 1], zs=shell[:, 2], color='blue')
-        #         # ax.scatter(xs=shell[:, 0], ys=shell[:, 1], zs=shell[:, 2], color='blue')
-        #         break
-        #
-        # for i, shells_layer in enumerate(shells_list):
-        #     for j, shell in enumerate(shells_layer):
-        #         shell_T = shell.transpose()
-        #         tck, u = splprep([shell_T[0], shell_T[1], shell_T[2]], per=True, s=0.0, k=3)
-        #         unew = np.arange(0, 1.01, 0.01)
-        #         out = splev(unew, tck)
-        #         ax.plot(xs=out[0], ys=out[1], zs=out[2], color='#' + hex(int(0xff * side_scale))[2:]+'0000')
-        #         if j == 1:
-        #             break
-        #             pass
+            for i, shells_layer in enumerate(shells_wireframe_list):
+                for j, shell in enumerate(shells_layer):
+                    ax.plot(xs=shell[:, 0], ys=shell[:, 1], zs=shell[:, 2], color='green')
+                    break
+            #
+            for i, shells_layer in enumerate(shells_list):
+                for j, shell in enumerate(shells_layer):
+                    ax.plot(xs=shell[:, 0], ys=shell[:, 1], zs=shell[:, 2], color='blue')
+                    # ax.scatter(xs=shell[:, 0], ys=shell[:, 1], zs=shell[:, 2], color='blue')
+                    break
+
+            for i, shells_layer in enumerate(shells_list):
+                for j, shell in enumerate(shells_layer):
+                    shell_T = shell.transpose()
+                    tck, u = splprep([shell_T[0], shell_T[1], shell_T[2]], per=True, s=0.0, k=3)
+                    unew = np.arange(0, 1.01, 0.01)
+                    out = splev(unew, tck)
+                    ax.plot(xs=out[0], ys=out[1], zs=out[2], color='#' + hex(int(0xff * side_scale))[2:]+'0000')
+                    if j == 1:
+                        break
+                        pass
 
 
     inner_centers_layers = []
+    inner_right_tips_layers = []
+    inner_left_tips_layers = []
+
 
     # Generate Triangles
     for i, shells_layer in enumerate(shells_list):
         inner_centers = []
+        inner_right_tips = []
+        inner_left_tips = []
+
         for j, shell in enumerate(shells_layer):
             tck_0, u_0 = splprep(
                 [sides[0][i][j].transpose()[0], sides[0][i][j].transpose()[1], sides[0][i][j].transpose()[2]], per=True,
@@ -306,6 +313,8 @@ if __name__ == '__main__':
             out_1 = np.array(splev(u_1_new, tck_1))
 
             inner_centers.append(out_1[:, 0])
+            inner_right_tips.append(out_1[:, int(out_1.shape[1]*3/4)])
+            inner_left_tips.append(out_1[:, int(out_1.shape[1]*1/4)])
 
             out = []
 
@@ -394,7 +403,9 @@ if __name__ == '__main__':
             rotation_axis_vector = np.cross(z_vector, center_vec_unit)
             angle_diff = angle_between(z_vector, center_vec_unit)
 
-            center_vec_rotated = rotate_around_axis(center_vec, rotation_axis_vector, angle_diff)
+            # OBS: to rotate output shells, uncomment following line
+            # center_vec_rotated = rotate_around_axis(center_vec, rotation_axis_vector, angle_diff)
+            center_vec_rotated = center_vec
 
             # Create inner and outer shells perpendicular to triangles
             # Each orig triangle only defines 1 new point on the outer and inner shells. The new outer and inner
@@ -471,11 +482,12 @@ if __name__ == '__main__':
             # is x axis.
             # TODO LB 20180731: output .obj file with rotated triangles.
 
-            # Rotate all points in triangles to have center vector up.
-            for tris, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
-                for tri, triangle in enumerate(triangles):
-                    for v, vertex in enumerate(triangle):
-                        triangles[tri][v] = rotate_around_axis(triangles[tri][v], rotation_axis_vector, angle_diff)
+            # OBS: uncomment following to get rotated shells, as well as OBS above.
+            # # Rotate all points in triangles to have center vector up.
+            # for tris, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
+            #     for tri, triangle in enumerate(triangles):
+            #         for v, vertex in enumerate(triangle):
+            #             triangles[tri][v] = rotate_around_axis(triangles[tri][v], rotation_axis_vector, angle_diff)
 
             # add triangles to .obj file
             obj_file = ''
@@ -513,16 +525,22 @@ if __name__ == '__main__':
                         [triangle_colors, triangle_colors, triangle_colors, np.ones(triangle_colors.shape) * 1]).transpose()
                     triangle_patches.set_edgecolor(triangle_colors_list*0.95)
                     triangle_patches.set_facecolor(triangle_colors_list)
-                    ax.add_collection3d(triangle_patches)
+                    # OBS: to plot shells, uncomment below line
+                    # if j < 2 :
+                    #     ax.add_collection3d(triangle_patches)
 
 
 
-            if j == 0:
+            if j == 1:
                 # break
                 pass
             # plt.show()
 
         inner_centers_layers.append(inner_centers)
+        inner_right_tips_layers.append(inner_right_tips)
+        inner_left_tips_layers.append(inner_left_tips)
+
+
         if i == 0:
             # break
             pass
@@ -535,14 +553,43 @@ if __name__ == '__main__':
     ribs_cw = []
     ribs_ccw = []
 
-
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
 
     # build each rib one by one by going around
-    for rib_num in range(n_shells):
-        centers = np.array(inner_centers_layers)[:, rib_num]
-        ribs
+    # Only ribs going in the direction of rotation. They will be connected by
+    ribs_ccw = []
+    for r in range(n_shells):
+        print('r: ', r)
+        # Extract rib layers cw
+        centers = np.array(inner_centers_layers)[:, r]
+        ax.plot(xs=centers[:, 0], ys=centers[:, 1], zs=centers[:, 2])
 
-        # TODO 20181014: ccw ribs must use centers in next layer but one step backwards?
+        # Extract rib layers ccw around the lamp
+        rib_layers_ccw = []
+
+        for l, layer in enumerate(zip(inner_centers_layers, inner_right_tips_layers, inner_left_tips_layers)):
+            # every second layer, use right tip, every other second layer, use center.
+            if l % 2 == 1:
+                # Take average between left and right tips, from different rib origins, to get propor center point
+                right = layer[1][(-int((l + 1) / 2) + r) % n_shells]
+                left = layer[2][(-int(l / 2) + r) % n_shells]
+                rib_layers_ccw.append((right + left) / 2)
+            else:
+                rib_layers_ccw.append(layer[0][(-int(l/2) + r) % n_shells])
+            print(l, -int(l / 2) + r)
+        rib_layers_ccw = np.array(rib_layers_ccw)
+        ribs_ccw.append(rib_layers_ccw)
+
+        ax.plot(xs=rib_layers_ccw[:, 0], ys=rib_layers_ccw[:, 1], zs=rib_layers_ccw[:, 2])
+
+        if r == 1:
+            # break
+            pass
+
+    plt.show()
+
+    # TODO 20181014: Next step is to create triangles around the ribs.
 
     n_points = len(points_s_out_c_inn)
     for k in range(n_points):
