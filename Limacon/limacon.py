@@ -71,7 +71,7 @@ def limacon(theta, r1=0.25, r2=0.05, n=4, h=0, scale_shift=0, scale_value=0.1, s
 
 
 # rotation of the limacon curve reltive to height.
-def phi_from_h(h, phi_min=0, phi_max=math.tau * 4 / 12, skew=False, tanh_skew=0.5):
+def phi_from_h(h, phi_min=0, phi_max=(math.pi*2) * 4 / 12, skew=False, tanh_skew=0.5):
     """
 
 
@@ -84,7 +84,7 @@ def phi_from_h(h, phi_min=0, phi_max=math.tau * 4 / 12, skew=False, tanh_skew=0.
     """
 
     if skew:
-        phi_skew = (1 + np.tanh((h - 0.5) * math.tau * tanh_skew)) / 2
+        phi_skew = (1 + np.tanh((h - 0.5) * (math.pi*2) * tanh_skew)) / 2
         phi = (phi_min + phi_skew * phi_max)
     else:
         phi = (phi_min + h * phi_max)
@@ -94,18 +94,18 @@ def phi_from_h(h, phi_min=0, phi_max=math.tau * 4 / 12, skew=False, tanh_skew=0.
 
 if __name__ == '__main__':
     np.set_printoptions(precision=3)
-    step = math.tau / 1024
-    theta = np.arange(0, math.tau + step, step)
+    step = (math.pi*2) / 1024
+    theta = np.arange(0, (math.pi*2) + step, step)
 
     plot_triangles = True
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     n_levels = 12
     phi_min = 0
-    phi_max = math.tau * 4 / 12
+    phi_max = (math.pi*2) * 4 / 12
     n_shells = 5
-    phi_shells = 0  # -math.tau/5
-    step = math.tau / n_shells
+    phi_shells = 0  # -(math.pi*2)/5
+    step = (math.pi*2) / n_shells
     wall_thickness = 0.0008  # everything is in meters.
     # moving control points towards center of half-shell, makes flat shells closer together, therefore extra scale.
     wall_thickness_extra_scale = 2.0
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     sides = []
     sides_wireframe = []
     for s, (side_scale, h_min, h_max, pure_scale_dir) in enumerate([(1.0, 0.0, 0.5, 1), (0.6, -0.025, 0.4, -1)]):
-        centers = np.arange(phi_shells, math.tau + phi_shells, step)
+        centers = np.arange(phi_shells, (math.pi*2) + phi_shells, step)
         inner_left = centers - (step / 8) * 1
         inner_right = centers + (step / 8) * 1
         centers_left = centers - (step / 8) * 2
@@ -319,8 +319,8 @@ if __name__ == '__main__':
                 inside_to_out_diff_vectors = out_0[:, k] - out_1[:, k]
                 inside_to_out_diff_vectors_unit = inside_to_out_diff_vectors / np.linalg.norm(
                     inside_to_out_diff_vectors)
-                out_0[:, k] = out_0[:, k] + inside_to_out_diff_vectors_unit * np.power(np.cos(k / n_points * math.tau), 2) * pointiness
-                # out_1[:, k] = out_1[:, k] + inside_to_out_diff_vectors_unit * np.abs(np.cos(k / n_points * math.tau)) * pointiness
+                out_0[:, k] = out_0[:, k] + inside_to_out_diff_vectors_unit * np.power(np.cos(k / n_points * (math.pi*2)), 2) * pointiness
+                # out_1[:, k] = out_1[:, k] + inside_to_out_diff_vectors_unit * np.abs(np.cos(k / n_points * (math.pi*2))) * pointiness
 
             for k in range(n_points):
                 # Triangles defined clockwise, i.e. top surface outwards.
@@ -529,7 +529,53 @@ if __name__ == '__main__':
 
     pp = pprint.PrettyPrinter()
     pp.pprint(inner_centers_layers)
-    # TODO LB 20180827: Use limacon curve to generate skeleton, triangles and all using inner centers liset.
+
+    # Create triangles for skeleton, going both clockwise and counterclockwise through each inner center point upwards.
+    # Each rib simply spirals upwards. They will be combined in meshmixer, then all shells cut out also in MM.
+    ribs_cw = []
+    ribs_ccw = []
+
+
+
+    # build each rib one by one by going around
+    for rib_num in range(n_shells):
+        centers = np.array(inner_centers_layers)[:, rib_num]
+        ribs
+
+        # TODO 20181014: ccw ribs must use centers in next layer but one step backwards?
+
+    n_points = len(points_s_out_c_inn)
+    for k in range(n_points):
+        # Triangles defined clockwise, i.e. top surface outwards.
+        k_next = (k + 1) % n_points
+        triangles_s_out.append(np.array(
+            [points_s_out_c_out[k], points_s_out_c_out[k_next], points_s_out_c_inn[k_next]]))
+        triangles_s_out.append(np.array([
+            points_s_out_c_inn[k], points_s_out_c_out[k], points_s_out_c_inn[k_next]]))
+
+        triangles_s_inn.append(np.array(
+            [points_s_inn_c_out[k], points_s_inn_c_out[k_next], points_s_inn_c_inn[k_next]]))
+        triangles_s_inn.append(np.array([
+            points_s_inn_c_inn[k], points_s_inn_c_out[k], points_s_inn_c_inn[k_next]]))
+
+        # Edge/curve triangles
+        # Outer edge/curve
+        triangles_c_out.append(np.array(
+            [points_s_out_c_out[k], points_s_inn_c_out[k], points_s_out_c_out[k_next]]))
+        triangles_c_out.append(np.array([
+            points_s_inn_c_out[k], points_s_out_c_out[k_next], points_s_inn_c_out[k_next]]))
+
+        # Inner edge/curve
+        triangles_c_inn.append(np.array(
+            [points_s_out_c_inn[k], points_s_inn_c_inn[k], points_s_out_c_inn[k_next]]))
+        triangles_c_inn.append(np.array([
+            points_s_inn_c_inn[k], points_s_inn_c_inn[k_next], points_s_out_c_inn[k_next]]))
+
+    triangles_s_out = np.array(triangles_s_out)
+    triangles_s_inn = np.array(triangles_s_inn)
+    triangles_c_out = np.array(triangles_c_out)
+    triangles_c_inn = np.array(triangles_c_inn)
+    # TODO LB 20180827: Use limacon curve to generate skeleton, triangles and all using inner centers list.
 
 
     # TODO LB 20180729: Redefine wireframe points to find infinity curves with a cirtain spacing to allow for shells to have a thickness.
