@@ -2,6 +2,7 @@ from bokeh.plotting import figure, show
 from bokeh.palettes import viridis
 import math
 import numpy as np
+import pandas as pd
 
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -70,6 +71,15 @@ def limacon(theta, r1=0.25, r2=0.05, n=4, h=0, scale_shift=0, scale_value=0.1, s
     return np.array([x, y, z]).transpose()
 
 
+def circle(theta, r, h=0):
+
+    x = r * np.cos(theta)
+    y = r * np.sin(theta)
+    z = np.ones(len(theta))*h
+
+    return np.array([x, y, z]).transpose()
+
+
 # rotation of the limacon curve reltive to height.
 def phi_from_h(h, phi_min=0, phi_max=(math.pi*2) * 4 / 12, skew=False, tanh_skew=0.5):
     """
@@ -100,15 +110,15 @@ if __name__ == '__main__':
     plot_triangles = True
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    n_levels = 12
+    n_levels = 11
     phi_min = 0
     phi_max = (math.pi*2) * 4 / 12
     n_shells = 5
     phi_shells = 0  # -(math.pi*2)/5
     step = (math.pi*2) / n_shells
-    wall_thickness = 0.0008  # everything is in meters.
+    wall_thickness = 0.0016   #0.0032  # everything is in meters.
     # moving control points towards center of half-shell, makes flat shells closer together, therefore extra scale.
-    wall_thickness_extra_scale = 2.0
+    wall_thickness_extra_scale = 2.0 #2.0
     n_triangles = 1024 # 8192
     # n_triangles = 8192
     scale_from_mm_to_m = 1000
@@ -150,7 +160,7 @@ if __name__ == '__main__':
             outer_pure_scale = side_scale * 1.0  # * 1.0 - 0.05 * pure_scale_dir
             tips_pure_scale = side_scale * 1.0  # * 1.0 - 0.0 * pure_scale_dir
 
-            centers_xyz = limacon(centers, h=h,scale_pure=center_pure_scale)
+            centers_xyz = limacon(centers, h=h, scale_pure=center_pure_scale)
             inner_left_upper_xyz = limacon(inner_left, h=h + h_step / 2, scale_pure=inner_pure_scale)
             elbow_left_upper_xyz = limacon(centers_left, h=h + h_step, scale_pure=elbow_pure_scale)
             outer_left_upper_xyz = limacon(outer_left, h=h + h_step / 2, scale_pure=outer_pure_scale)
@@ -403,9 +413,9 @@ if __name__ == '__main__':
             rotation_axis_vector = np.cross(z_vector, center_vec_unit)
             angle_diff = angle_between(z_vector, center_vec_unit)
 
-            # OBS: to rotate output shells, uncomment following line
-            # center_vec_rotated = rotate_around_axis(center_vec, rotation_axis_vector, angle_diff)
-            center_vec_rotated = center_vec
+            # OBS: to rotate output shells, uncomment following line, as well as OBS below
+            center_vec_rotated = rotate_around_axis(center_vec, rotation_axis_vector, angle_diff)
+            # center_vec_rotated = center_vec
 
             # Create inner and outer shells perpendicular to triangles
             # Each orig triangle only defines 1 new point on the outer and inner shells. The new outer and inner
@@ -450,9 +460,9 @@ if __name__ == '__main__':
                 # Triangles defined clockwise, i.e. top surface outwards.
                 k_next = (k + 1) % n_points
                 triangles_s_out.append(np.array(
-                    [points_s_out_c_out[k], points_s_out_c_out[k_next], points_s_out_c_inn[k_next]]))
+                    [points_s_out_c_out[k], points_s_out_c_inn[k_next], points_s_out_c_out[k_next]]))
                 triangles_s_out.append(np.array([
-                    points_s_out_c_inn[k], points_s_out_c_out[k], points_s_out_c_inn[k_next]]))
+                    points_s_out_c_inn[k], points_s_out_c_inn[k_next], points_s_out_c_out[k]]))
 
                 triangles_s_inn.append(np.array(
                     [points_s_inn_c_out[k], points_s_inn_c_out[k_next], points_s_inn_c_inn[k_next]]))
@@ -461,8 +471,9 @@ if __name__ == '__main__':
 
                 # Edge/curve triangles
                 # Outer edge/curve
-                triangles_c_out.append(np.array(
-                    [points_s_out_c_out[k], points_s_inn_c_out[k], points_s_out_c_out[k_next]]))
+
+                triangles_c_inn.append(np.array(
+                    [points_s_out_c_out[k], points_s_out_c_out[k_next], points_s_inn_c_out[k]]))
                 triangles_c_out.append(np.array([
                     points_s_inn_c_out[k], points_s_out_c_out[k_next], points_s_inn_c_out[k_next]]))
 
@@ -483,30 +494,42 @@ if __name__ == '__main__':
             # TODO LB 20180731: output .obj file with rotated triangles.
 
             # OBS: uncomment following to get rotated shells, as well as OBS above.
-            # # Rotate all points in triangles to have center vector up.
-            # for tris, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
-            #     for tri, triangle in enumerate(triangles):
-            #         for v, vertex in enumerate(triangle):
-            #             triangles[tri][v] = rotate_around_axis(triangles[tri][v], rotation_axis_vector, angle_diff)
+            # Rotate all points in triangles to have center vector up.
+            for tris, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
+                for tri, triangle in enumerate(triangles):
+                    for v, vertex in enumerate(triangle):
+                        triangles[tri][v] = rotate_around_axis(triangles[tri][v], rotation_axis_vector, angle_diff)
 
             # add triangles to .obj file
             obj_file = ''
 
+            seen = []
             for tri, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
                 for triangle in triangles:
                     for vertex in triangle:
-                        obj_file += 'v'
-                        for coord in vertex:
-                            obj_file += ' ' + str(coord*scale_from_mm_to_m)
-                        obj_file += '\n'
+                        if not vertex.tolist() in seen:
+                            seen.append(vertex.tolist())
+                            obj_file += 'v'
+                            for coord in vertex:
+                                obj_file += ' {coord:.4f}'.format(coord=coord * scale_from_mm_to_m)
+                            obj_file += '\n'
 
+            seen = []
             for tri, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
                 obj_file += 'g ' + str(tri) + '\n'
                 for t, triangle in enumerate(triangles):
                     obj_file += 'f'
                     for v, vertex in enumerate(triangle):
-                        obj_file += ' ' + str(tri * len(triangles)*3 + t*3 + v + 1)
+                        v_num = tri * len(triangles) * 3 + t * 3 + v + 1
+                        if vertex.tolist() in seen:
+                            v_num = seen.index(vertex.tolist()) + 1
+                        else:
+                            seen.append(vertex.tolist())
+                            v_num = len(seen)
+                        obj_file += ' ' + str(v_num)
                     obj_file += '\n'
+
+
 
             with open('shell_layer_{i}_shell_{j}.obj'.format(i=i, j=j), 'w') as f:
                 f.write(obj_file)
@@ -558,12 +581,12 @@ if __name__ == '__main__':
 
     # build each rib one by one by going around
     # Only ribs going in the direction of rotation. They will be connected by
-    ribs_ccw = []
     for r in range(n_shells):
         print('r: ', r)
         # Extract rib layers cw
-        centers = np.array(inner_centers_layers)[:, r]
-        ax.plot(xs=centers[:, 0], ys=centers[:, 1], zs=centers[:, 2])
+        ribs_layers_cw = np.array(inner_centers_layers)[:, r]
+        ribs_cw.append(ribs_layers_cw)
+        ax.plot(xs=ribs_layers_cw[:, 0], ys=ribs_layers_cw[:, 1], zs=ribs_layers_cw[:, 2])
 
         # Extract rib layers ccw around the lamp
         rib_layers_ccw = []
@@ -587,46 +610,125 @@ if __name__ == '__main__':
             # break
             pass
 
-    plt.show()
+    # plt.show()
 
-    # TODO 20181014: Next step is to create triangles around the ribs.
 
-    n_points = len(points_s_out_c_inn)
-    for k in range(n_points):
-        # Triangles defined clockwise, i.e. top surface outwards.
-        k_next = (k + 1) % n_points
-        triangles_s_out.append(np.array(
-            [points_s_out_c_out[k], points_s_out_c_out[k_next], points_s_out_c_inn[k_next]]))
-        triangles_s_out.append(np.array([
-            points_s_out_c_inn[k], points_s_out_c_out[k], points_s_out_c_inn[k_next]]))
+    # will contain the shell outlines for each rib.
+    ribs_shells_cw = []
+    ribs_shells_ccw = []
 
-        triangles_s_inn.append(np.array(
-            [points_s_inn_c_out[k], points_s_inn_c_out[k_next], points_s_inn_c_inn[k_next]]))
-        triangles_s_inn.append(np.array([
-            points_s_inn_c_inn[k], points_s_inn_c_out[k], points_s_inn_c_inn[k_next]]))
+    rib_radius = 0.01
+    n_points_ribs = 8
 
-        # Edge/curve triangles
-        # Outer edge/curve
-        triangles_c_out.append(np.array(
-            [points_s_out_c_out[k], points_s_inn_c_out[k], points_s_out_c_out[k_next]]))
-        triangles_c_out.append(np.array([
-            points_s_inn_c_out[k], points_s_out_c_out[k_next], points_s_inn_c_out[k_next]]))
+    for r, rib in enumerate(ribs_cw):
+        rib_shells_cw = []
+        for l, layer in enumerate(rib):
+            thetas = np.arange(0, math.pi*2, math.pi*2 / n_points_ribs)
+            limacon_points = circle(thetas, rib_radius)
+            rib_shells_cw.append(limacon_points + layer)
+        ribs_shells_cw.append(np.array(rib_shells_cw))
+    ribs_shells_cw = np.array(ribs_shells_cw)
 
-        # Inner edge/curve
-        triangles_c_inn.append(np.array(
-            [points_s_out_c_inn[k], points_s_inn_c_inn[k], points_s_out_c_inn[k_next]]))
-        triangles_c_inn.append(np.array([
-            points_s_inn_c_inn[k], points_s_inn_c_inn[k_next], points_s_out_c_inn[k_next]]))
 
-    triangles_s_out = np.array(triangles_s_out)
-    triangles_s_inn = np.array(triangles_s_inn)
-    triangles_c_out = np.array(triangles_c_out)
-    triangles_c_inn = np.array(triangles_c_inn)
-    # TODO LB 20180827: Use limacon curve to generate skeleton, triangles and all using inner centers list.
 
+    triangles_cw = []
+    for r, rib in enumerate(ribs_shells_cw):
+        for l, layer in enumerate(rib):
+            # Skip last layer
+            if l >= len(rib) - 1:
+                break
+            for p, point in enumerate(layer):
+                p_next = (p + 1) % len(layer)
+                triangles_cw.append(np.array(
+                    [rib[l][p], rib[l+1][p], rib[l][p_next]]))
+                triangles_cw.append(np.array(
+                    [rib[l+1][p], rib[l + 1][p_next], rib[l][p_next]]))
+
+        # lowest layer
+        for p, point in enumerate(rib[0]):
+            p_next = (p + 1) % len(rib[0])
+            triangles_cw.append(np.array(
+                [np.mean(rib[0], axis=0), rib[0][p], rib[0][p_next]]))
+
+        # highest layer
+        # lowest layer
+        for p, point in enumerate(rib[-1]):
+            p_next = (p + 1) % len(rib[-1])
+            triangles_cw.append(np.array(
+                [np.mean(rib[-1], axis=0), rib[-1][p_next], rib[-1][p]]))
+
+    triangles_cw = np.array(triangles_cw)
+
+
+    for r, rib in enumerate(ribs_ccw):
+        rib_shells_ccw = []
+        for l, layer in enumerate(rib):
+            thetas = np.arange(0, math.pi*2, math.pi*2 / n_points_ribs)
+            limacon_points = circle(thetas, rib_radius)
+            rib_shells_ccw.append(limacon_points + layer)
+        ribs_shells_ccw.append(np.array(rib_shells_ccw))
+    ribs_shells_ccw = np.array(ribs_shells_ccw)
+
+    triangles_ccw = []
+    for r, rib in enumerate(ribs_shells_ccw):
+        for l, layer in enumerate(rib):
+            # Skip last layer
+            if l >= len(rib) - 1:
+                break
+            for p, point in enumerate(layer):
+                p_next = (p + 1) % len(layer)
+                triangles_ccw.append(np.array(
+                    [rib[l][p], rib[l+1][p], rib[l][p_next]]))
+                triangles_ccw.append(np.array(
+                    [rib[l + 1][p], rib[l + 1][p_next], rib[l][p_next]]))
+
+        # lowest layer
+        for p, point in enumerate(rib[0]):
+            p_next = (p + 1) % len(rib[0])
+            triangles_ccw.append(np.array(
+                [np.mean(rib[0], axis=0), rib[0][p], rib[0][p_next]]))
+
+        # highest layer
+        # lowest layer
+        for p, point in enumerate(rib[-1]):
+            p_next = (p + 1) % len(rib[-1])
+            triangles_ccw.append(np.array(
+                [np.mean(rib[-1], axis=0), rib[-1][p_next], rib[-1][p]]))
+
+    triangles_ccw = np.array(triangles_ccw)
+
+
+
+    for tri, triangles in enumerate((triangles_cw, triangles_ccw)):
+        obj_file = ''
+        seen = []
+        for triangle in triangles:
+            for vertex in triangle:
+                if not vertex.tolist() in seen:
+                    seen.append(vertex.tolist())
+                    obj_file += 'v'
+                    for coord in vertex:
+                        obj_file += ' {coord:.4f}'.format(coord=coord * scale_from_mm_to_m)
+                    obj_file += '\n'
+
+        seen = []
+        obj_file += 'g ' + str(tri) + '\n'
+        for t, triangle in enumerate(triangles):
+            obj_file += 'f'
+            for v, vertex in enumerate(triangle):
+                v_num = tri * len(triangles) * 3 + t * 3 + v + 1
+                if vertex.tolist() in seen:
+                    v_num = seen.index(vertex.tolist()) + 1
+                else:
+                    seen.append(vertex.tolist())
+                    v_num = len(seen)
+                obj_file += ' ' + str(v_num)
+            obj_file += '\n'
+
+        with open('skeleton_{dir}.obj'.format(dir=tri), 'w') as f:
+            f.write(obj_file)
 
     # TODO LB 20180729: Redefine wireframe points to find infinity curves with a cirtain spacing to allow for shells to have a thickness.
     # TODO LB 20180729: Rotate each shell so the two curve center points lie on the x axis, for printing.
 
-    plt.show()
-
+    # plt.show()
