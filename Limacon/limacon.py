@@ -119,7 +119,7 @@ if __name__ == '__main__':
     wall_thickness = 0.0016   #0.0032  # everything is in meters.
     # moving control points towards center of half-shell, makes flat shells closer together, therefore extra scale.
     wall_thickness_extra_scale = 2.0 #2.0
-    n_triangles = 1024 # 8192
+    n_triangles = 256
     # n_triangles = 8192
     scale_from_mm_to_m = 1000
     pointiness = -0.04  # in meters
@@ -414,8 +414,8 @@ if __name__ == '__main__':
             angle_diff = angle_between(z_vector, center_vec_unit)
 
             # OBS: to rotate output shells, uncomment following line, as well as OBS below
-            center_vec_rotated = rotate_around_axis(center_vec, rotation_axis_vector, angle_diff)
-            # center_vec_rotated = center_vec
+            # center_vec_rotated = rotate_around_axis(center_vec, rotation_axis_vector, angle_diff)
+            center_vec_rotated = center_vec
 
             # Create inner and outer shells perpendicular to triangles
             # Each orig triangle only defines 1 new point on the outer and inner shells. The new outer and inner
@@ -495,10 +495,10 @@ if __name__ == '__main__':
 
             # OBS: uncomment following to get rotated shells, as well as OBS above.
             # Rotate all points in triangles to have center vector up.
-            for tris, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
-                for tri, triangle in enumerate(triangles):
-                    for v, vertex in enumerate(triangle):
-                        triangles[tri][v] = rotate_around_axis(triangles[tri][v], rotation_axis_vector, angle_diff)
+            # for tris, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
+            #     for tri, triangle in enumerate(triangles):
+            #         for v, vertex in enumerate(triangle):
+            #             triangles[tri][v] = rotate_around_axis(triangles[tri][v], rotation_axis_vector, angle_diff)
 
             # add triangles to .obj file
             obj_file = ''
@@ -507,24 +507,24 @@ if __name__ == '__main__':
             for tri, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
                 for triangle in triangles:
                     for vertex in triangle:
-                        if not vertex.tolist() in seen:
-                            seen.append(vertex.tolist())
+                        if not vertex.round(4).tolist() in seen:
+                            seen.append(vertex.round(4).tolist())
                             obj_file += 'v'
                             for coord in vertex:
                                 obj_file += ' {coord:.4f}'.format(coord=coord * scale_from_mm_to_m)
                             obj_file += '\n'
 
             seen = []
+            obj_file += 'g ' + '1' + '\n'
             for tri, triangles in enumerate((triangles_s_out, triangles_s_inn, triangles_c_out, triangles_c_inn)):
-                obj_file += 'g ' + str(tri) + '\n'
                 for t, triangle in enumerate(triangles):
                     obj_file += 'f'
                     for v, vertex in enumerate(triangle):
                         v_num = tri * len(triangles) * 3 + t * 3 + v + 1
-                        if vertex.tolist() in seen:
-                            v_num = seen.index(vertex.tolist()) + 1
+                        if vertex.round(4).tolist() in seen:
+                            v_num = seen.index(vertex.round(4).tolist()) + 1
                         else:
-                            seen.append(vertex.tolist())
+                            seen.append(vertex.round(4).tolist())
                             v_num = len(seen)
                         obj_file += ' ' + str(v_num)
                     obj_file += '\n'
@@ -704,8 +704,8 @@ if __name__ == '__main__':
         seen = []
         for triangle in triangles:
             for vertex in triangle:
-                if not vertex.tolist() in seen:
-                    seen.append(vertex.tolist())
+                if not vertex.round(4).tolist() in seen:
+                    seen.append(vertex.round(4).tolist())
                     obj_file += 'v'
                     for coord in vertex:
                         obj_file += ' {coord:.4f}'.format(coord=coord * scale_from_mm_to_m)
@@ -717,10 +717,10 @@ if __name__ == '__main__':
             obj_file += 'f'
             for v, vertex in enumerate(triangle):
                 v_num = tri * len(triangles) * 3 + t * 3 + v + 1
-                if vertex.tolist() in seen:
-                    v_num = seen.index(vertex.tolist()) + 1
+                if vertex.round(4).tolist() in seen:
+                    v_num = seen.index(vertex.round(4).tolist()) + 1
                 else:
-                    seen.append(vertex.tolist())
+                    seen.append(vertex.round(4).tolist())
                     v_num = len(seen)
                 obj_file += ' ' + str(v_num)
             obj_file += '\n'
