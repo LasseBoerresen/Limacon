@@ -347,17 +347,20 @@ if __name__ == '__main__':
                 # Triangles defined clockwise, i.e. top surface outwards.
                 k_next = (k + 1) % n_points
 
+                # 20190602 moved triangle before the other, to actually have the first tirangle first
+                triangles.append(np.array([out_1[:, k], out_0[:, k], out_1[:, k_next]]))
+
+                assert not np.array_equal(triangles[-1][0], triangles[-1][1])
+                assert not np.array_equal(triangles[-1][0], triangles[-1][2])
+                assert not np.array_equal(triangles[-1][1], triangles[-1][2])
+
                 triangles.append(np.array([out_0[:, k], out_0[:, k_next], out_1[:, k_next]]))
 
                 assert not np.array_equal(triangles[-1][0], triangles[-1][1])
                 assert not np.array_equal(triangles[-1][0], triangles[-1][2])
                 assert not np.array_equal(triangles[-1][1], triangles[-1][2])
 
-                triangles.append(np.array([out_1[:, k], out_0[:, k], out_1[:, k_next]]))
 
-                assert not np.array_equal(triangles[-1][0], triangles[-1][1])
-                assert not np.array_equal(triangles[-1][0], triangles[-1][2])
-                assert not np.array_equal(triangles[-1][1], triangles[-1][2])
 
             triangles = np.array(triangles)
 
@@ -411,8 +414,6 @@ if __name__ == '__main__':
                 :return:
                 """
 
-                # TODO fix that i am not changing the triangles while i am using them.
-
                 triangles_unfolded = []
                 for t, triangle in enumerate(triangles):
                     # move all points so rotation axis is on origo, start with open axis of first triangle, to make that
@@ -427,17 +428,150 @@ if __name__ == '__main__':
                             triangles[tr][p] -= active_triangle[0]
 
                     # Plot triangles every step
+                    fig = plt.figure()
                     ax_ = fig.add_subplot(111, projection='3d')
-                    ax_.set_xlim3d(-0.2, 0.2)
-                    ax_.set_ylim3d(-0.2, 0.2)
-                    ax_.set_zlim3d(-0.2, 0.2)
+                    ax_.set_xlim3d(-0.05, 0.05)
+                    ax_.set_ylim3d(-0.05, 0.05)
+                    ax_.set_zlim3d(-0.05, 0.05)
                     ax_.set_xlabel('x')
                     ax_.set_ylabel('y')
                     ax_.set_zlabel('z')
 
                     # plot active_point
                     ax_.scatter(active_triangle[0][0], active_triangle[0][1], active_triangle[0][2], color='black')
+
+                    # plot active_triangle
+                    ax_.scatter(triangles[t][0][0], triangles[t][0][1], triangles[t][0][2], color='red')
+                    ax_.scatter(triangles[t][1][0], triangles[t][1][1], triangles[t][1][2], color='green')
+                    ax_.scatter(triangles[t][2][0], triangles[t][2][1], triangles[t][2][2], color='blue')
+
+                    triangle_patches = Poly3DCollection(triangles[:4])
+
+                    layer_color = i / len(shells_list)
+                    layer_color_next = (i + 1) / len(shells_list)
+                    triangle_colors = np.linspace(layer_color, layer_color_next, len(triangles))
+
+                    triangle_colors_list = np.array(
+                        [triangle_colors, triangle_colors, triangle_colors,
+                         np.ones(triangle_colors.shape) * 0.5]).transpose()
+                    triangle_patches.set_edgecolor(triangle_colors_list * 0.95)
+                    triangle_patches.set_facecolor(triangle_colors_list)
+                    # OBS: to plot shells, uncomment below line
+                    if j < 2:
+                        ax_.add_collection3d(triangle_patches)
+
+                    plt.title('shifted')
+
+                    plt.show()
+
+                    ass_msg = 'current triangle\'s first point should be (0,0,0), got {p}'.format(p=triangles[t][0])
+                    assert np.array_equal(triangles[t][0], np.array([0, 0, 0])), ass_msg
+
+                    # Rotate axis to be horizontal, including all following points.
+                    active_triangle = triangles[t].copy()
+                    # 20190602 This odd-even numbering has been visually verified.
+                    if t % 2 == 0:
+                        # if even, ie. 0th triangle, 2nd etc
+                        axis = active_triangle[1] - active_triangle[0]  # the sub should always be (0,0,0), but hey
+                    else:
+                        axis = active_triangle[2] - active_triangle[0]
+
+                    z_vector = np.array([0, 0, 1])
+
+                    # same for odd and even, because both go cw.
+                    actual_axis = np.cross(z_vector, axis)
+                    actual_axis_unit = unit_vector(actual_axis)
+
+                    angle = - (np.pi*2/4 - angle_between(z_vector, axis))
+
+                    for tr in np.arange(t, len(triangles)):
+                        print('tr: ', tr)
+                        for p, point in enumerate(triangles[tr]):
+                            triangles[tr][p] = rotate_around_axis(vec=triangles[tr][p], u=actual_axis_unit, a=angle)
+
+                    # Plot triangles every step
+                    fig = plt.figure()
+                    ax_ = fig.add_subplot(111, projection='3d')
+                    ax_.set_xlim3d(-0.05, 0.05)
+                    ax_.set_ylim3d(-0.05, 0.05)
+                    ax_.set_zlim3d(-0.05, 0.05)
+                    ax_.set_xlabel('x')
+                    ax_.set_ylabel('y')
+                    ax_.set_zlabel('z')
+
                     # plot active_point
+                    ax_.scatter(active_triangle[0][0], active_triangle[0][1], active_triangle[0][2], color='black')
+
+                    # plot active_triangle
+                    ax_.scatter(triangles[t][0][0], triangles[t][0][1], triangles[t][0][2], color='red')
+                    ax_.scatter(triangles[t][1][0], triangles[t][1][1], triangles[t][1][2], color='green')
+                    ax_.scatter(triangles[t][2][0], triangles[t][2][1], triangles[t][2][2], color='blue')
+
+                    triangle_patches = Poly3DCollection(triangles[:4])
+
+                    layer_color = i / len(shells_list)
+                    layer_color_next = (i + 1) / len(shells_list)
+                    triangle_colors = np.linspace(layer_color, layer_color_next, len(triangles))
+
+                    triangle_colors_list = np.array(
+                        [triangle_colors, triangle_colors, triangle_colors,
+                         np.ones(triangle_colors.shape) * 0.5]).transpose()
+                    triangle_patches.set_edgecolor(triangle_colors_list * 0.95)
+                    triangle_patches.set_facecolor(triangle_colors_list)
+                    # OBS: to plot shells, uncomment below line
+                    if j < 2:
+                        ax_.add_collection3d(triangle_patches)
+
+                    plt.title('axis aligned')
+
+                    plt.show()
+
+
+
+                    # now rotate all points around the axis. This axis depends on whether we are at an even or odd
+                    # triangle, since even (counting from 0) has axis between 0th and 2nd point, but odds have it
+                    # between 0th and 1st.
+                    # Rotate an angle defined by the angle between the two normal vectors of the triangles. The
+                    # normal vector is found by the cross product of two vectors of the plane, i.e. from the current
+                    # point to each of the other points.
+                    active_triangle = triangles[t].copy()
+                    # 20190602 This odd-even numbering has been visually verified.
+                    if t % 2 == 0:
+                        # if even, ie. 0th triangle, 2nd etc
+                        axis = active_triangle[1] - active_triangle[0]  # the sub should always be (0,0,0), but hey
+                    else:
+                        axis = active_triangle[2] - active_triangle[0]
+
+                    # Really, we always want to rotate between horizontal plane and next triangle, so the first
+                    # normal is just (0,0,1)
+
+                    z_vector = np.array([0, 0, 1])
+                    # same normal for odd and even, because both go cw.
+                    triangle_next_normal = np.cross(triangles[t][2], triangles[t][1])
+                    triangle_next_normal_unit = unit_vector(triangle_next_normal)
+                    print('triangle_next_normal_unit', triangle_next_normal_unit)
+                    angle = angle_between(z_vector, triangle_next_normal_unit)
+                    print('angle', angle)
+                    for tr in np.arange(t, len(triangles)):
+                        print('tr: ', tr)
+                        for p, point in enumerate(triangles[tr]):
+                            triangles[tr][p] = rotate_around_axis(vec=triangles[tr][p], u=unit_vector(axis), a=angle)
+
+                    # Plot triangles every step
+                    fig = plt.figure()
+                    ax_ = fig.add_subplot(111, projection='3d')
+                    ax_.set_xlim3d(-0.05, 0.05)
+                    ax_.set_ylim3d(-0.05, 0.05)
+                    ax_.set_zlim3d(-0.05, 0.05)
+                    ax_.set_xlabel('x')
+                    ax_.set_ylabel('y')
+                    ax_.set_zlabel('z')
+                    plt.title('rotated')
+
+                    # plot active_point
+                    ax_.scatter(active_triangle[0][0], active_triangle[0][1], active_triangle[0][2], color='black')
+
+                    # plot active_triangle
                     ax_.scatter(triangles[t][0][0], triangles[t][0][1], triangles[t][0][2], color='red')
                     ax_.scatter(triangles[t][1][0], triangles[t][1][1], triangles[t][1][2], color='green')
                     ax_.scatter(triangles[t][2][0], triangles[t][2][1], triangles[t][2][2], color='blue')
@@ -459,63 +593,12 @@ if __name__ == '__main__':
 
                     plt.show()
 
-                    ass_msg = 'current triangle\'s first point should be (0,0,0), got {p}'.format(p=triangles[t][0])
-                    assert np.array_equal(triangles[t][0], np.array([0, 0, 0])), ass_msg
-
-                    # now rotate all points around the axis. This axis depends on whether we are at an even or odd
-                    # triangle, since even (counting from 0) has axis between 0th and 2nd point, but odds have it
-                    # between 0th and 1st.
-                    # Rotate an angle defined by the angle between the two normal vectors of the triangles. The
-                    # normal vector is found by the cross product of two vectors of the plane, i.e. from the current
-                    # point to each of the other points.
-
-                    # active_triangle = triangles[t].copy()
-                    # for tr in np.arange(t, len(triangles)):
-                    #     for p, point in enumerate(triangles[tr]):
-                    #         if t % 2 == 0:
-                    #             axis = active_triangle[2] - active_triangle[0]  # the sub should always be (0,0,0), but hey
-                    #         else:
-                    #             axis = active_triangle[1] - active_triangle[0]
-                    #
-                    #         # Really, we always want to rotate between horizontal plane and next triangle, so the first
-                    #         # normal is just (0,0,1)
-                    #
-                    #         z_vector = np.array([0, 0, 1])
-                    #
-                    #         # same for odd and even, because both go ccw.
-                    #         triangle_next_normal = np.cross(triangles[tr][1], triangles[tr][2])
-                    #         triangle_next_normal_unit = unit_vector(triangle_next_normal)
-                    #
-                    #         angle = angle_between(z_vector, triangle_next_normal_unit)
-                    #
-                    #         triangles[tr][p] = rotate_around_axis(vec=triangles[tr][p], u=unit_vector(axis), a=angle)
-
-                    # Plot triangles every step
-                    ax_ = fig.add_subplot(111, projection='3d')
-                    ax_.set_xlim3d(-0.2, 0.2)
-                    ax_.set_ylim3d(-0.2, 0.2)
-                    ax_.set_zlim3d(-0.2, 0.2)
-                    ax_.set_xlabel('x')
-                    ax_.set_ylabel('y')
-                    ax_.set_zlabel('z')
-
-
-                    triangle_patches = Poly3DCollection(triangles[:4])
-
-                    layer_color = i / len(shells_list)
-                    layer_color_next = (i + 1) / len(shells_list)
-                    triangle_colors = np.linspace(layer_color, layer_color_next, len(triangles))
-
-                    triangle_colors_list = np.array(
-                        [triangle_colors, triangle_colors, triangle_colors,
-                         np.ones(triangle_colors.shape) * 0.5]).transpose()
-                    triangle_patches.set_edgecolor(triangle_colors_list * 0.95)
-                    triangle_patches.set_facecolor(triangle_colors_list)
-                    # OBS: to plot shells, uncomment below line
-                    if j < 2:
-                        ax_.add_collection3d(triangle_patches)
-
-                    plt.show()
+                    # all previous points should have z = 0.0 after rotation.
+                    for _t, _triangle in enumerate(triangles[:t+1]):
+                        ass_msg = 'z value of rotated triangle should be 0.0, got: {z}'
+                        assert triangles[_t][0][2] == 0.0, ass_msg.format(z=triangles[_t][0][2])
+                        assert triangles[_t][1][2] == 0.0, ass_msg.format(z=triangles[_t][1][2])
+                        assert triangles[_t][2][2] == 0.0, ass_msg.format(z=triangles[_t][2][2])
 
                     if t >= 1:
                         break
